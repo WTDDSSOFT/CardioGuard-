@@ -6,7 +6,9 @@ The company is prototyping a domestic and continuous cardiovascular monitor. Thi
 The purpose of your app is to connect to this monitor, process data asynchronously and securely, and alert the user immediately if there is a dangerous variation (such as a peak in hypertension or a severe drop in pressure/bradycardia).
 
 ---
+> 💡 **Project Purpose:** This project was developed exclusively as a hands-on study to master **Bluetooth Low Energy (BLE)** integration in iOS, focusing on Swift 6 Structured Concurrency, data safety, and robust byte parsing for connected devices.
 
+---
 ## 🛠 Technical Requirements
 
 ### 1. Connectivity & Data Parsing Layer (Swift 6)
