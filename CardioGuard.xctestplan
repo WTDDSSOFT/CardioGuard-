@@ -1,0 +1,48 @@
+{
+  "configurations" : [
+    {
+      "id" : "19EC8B5A-C657-40E5-A931-636E3880958A",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:CardioGuard.xcodeproj",
+      "identifier" : "D945738E2FBCA3FF00B0A2AF",
+      "name" : "CardioGuard"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "selectedTags" : {
+        "tags" : [
+          ".success"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:CardioGuard.xcodeproj",
+        "identifier" : "D945739B2FBCA40000B0A2AF",
+        "name" : "CardioGuardTests"
+      }
+    },
+    {
+      "parallelizable" : true,
+      "selectedTags" : {
+        "tags" : [
+          ".success"
+        ]
+      },
+      "target" : {
+        "containerPath" : "container:CardioGuard.xcodeproj",
+        "identifier" : "D94573A52FBCA40000B0A2AF",
+        "name" : "CardioGuardUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

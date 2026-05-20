@@ -27,6 +27,7 @@
 		D945738F2FBCA3FF00B0A2AF /* CardioGuard.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CardioGuard.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D945739C2FBCA40000B0A2AF /* CardioGuardTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CardioGuardTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D94573A62FBCA40000B0A2AF /* CardioGuardUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CardioGuardUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D99D8FFD2FBE071300FF34B1 /* CardioGuard.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = CardioGuard.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +76,7 @@
 		D94573862FBCA3FF00B0A2AF = {
 			isa = PBXGroup;
 			children = (
+				D99D8FFD2FBE071300FF34B1 /* CardioGuard.xctestplan */,
 				D94573912FBCA3FF00B0A2AF /* CardioGuard */,
 				D945739F2FBCA40000B0A2AF /* CardioGuardTests */,
 				D94573A92FBCA40000B0A2AF /* CardioGuardUITests */,
