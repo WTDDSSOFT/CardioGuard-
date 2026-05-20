@@ -21,7 +21,8 @@
       "parallelizable" : true,
       "selectedTags" : {
         "tags" : [
-          ".success"
+          ".success",
+          ".failure"
         ]
       },
       "target" : {
@@ -34,6 +35,7 @@
       "parallelizable" : true,
       "selectedTags" : {
         "tags" : [
+          ".failure",
           ".success"
         ]
       },

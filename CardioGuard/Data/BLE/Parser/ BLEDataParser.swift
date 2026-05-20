@@ -14,7 +14,7 @@ enum BLEDataParserError: Error {
 
 
 struct BLEDataParser {
-    func parse(payload: [UInt8]) throws -> standardClinicalThresholds {
+    func parse(payload: [UInt8]) throws -> CardioVascularMetrics {
         
         guard payload.count == 3 else {
             throw BLEDataParserError.invalidPacketLength
@@ -29,6 +29,6 @@ struct BLEDataParser {
             throw BLEDataParserError.corruptedData
         }
         
-        return standardClinicalThresholds(BPM: bpm, SystoliC: slic, Diastolic: dlic)
+        return CardioVascularMetrics(BPM: bpm, SystoliC: slic, Diastolic: dlic)
     }
 }

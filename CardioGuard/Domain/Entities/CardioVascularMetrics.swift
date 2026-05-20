@@ -6,7 +6,7 @@
 //
 import Foundation
 
-struct standardClinicalThresholds {
+struct CardioVascularMetrics {
     var BPM: Int
     var SystoliC: Int
     var Diastolic: Int

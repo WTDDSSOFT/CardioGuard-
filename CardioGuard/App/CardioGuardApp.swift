@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct CardioGuardApp: App {
+    private let container = AppContainer.shared
+
     var body: some Scene {
         WindowGroup {
             DashBoardUIView()
+                .environment(container.router)
         }
     }
 }
