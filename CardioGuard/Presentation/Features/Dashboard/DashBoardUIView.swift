@@ -56,7 +56,7 @@ struct DashBoardUIView: View {
             endPoint: .bottom
         )
         .ignoresSafeArea()
-        .animation(.easeInOut(duration: 0.6), value: viewModel.alertState)
+        .animation(AppTheme.Animation.backgroundTransition, value: viewModel.alertState)
     }
 
     private var alertBanner: some View {
@@ -69,26 +69,26 @@ struct DashBoardUIView: View {
             if viewModel.isMonitoring {
                 HStack(spacing: 5) {
                     Circle()
-                        .fill(.green)
+                        .fill(AppTheme.Colors.liveMonitoring)
                         .frame(width: 7, height: 7)
                     Text("Live")
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(.green)
+                        .foregroundStyle(AppTheme.Colors.liveMonitoring)
                 }
             }
         }
         .foregroundStyle(viewModel.alertState.accentColor)
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(viewModel.alertState.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: 14))
-        .animation(.easeInOut(duration: 0.4), value: viewModel.alertState)
+        .padding(.horizontal, AppTheme.Spacing.standard)
+        .padding(.vertical, AppTheme.Spacing.compact)
+        .background(viewModel.alertState.accentColor.opacity(0.12), in: RoundedRectangle(cornerRadius: AppTheme.Radius.tag))
+        .animation(AppTheme.Animation.stateChange, value: viewModel.alertState)
     }
 
     private var heartRateCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             HStack {
                 Image(systemName: "heart.fill")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(AppTheme.Colors.heartRate)
                     .symbolEffect(.bounce, value: viewModel.currentMetrics?.BPM)
                 Text("Heart Rate")
                     .font(.headline)
@@ -99,28 +99,28 @@ struct DashBoardUIView: View {
                 Text(viewModel.currentMetrics.map { "\($0.BPM)" } ?? "--")
                     .font(.system(size: 72, weight: .bold, design: .rounded))
                     .contentTransition(.numericText())
-                    .animation(.easeOut(duration: 0.3), value: viewModel.currentMetrics?.BPM)
+                    .animation(AppTheme.Animation.metricUpdate, value: viewModel.currentMetrics?.BPM)
                 Text("BPM")
                     .font(.title2.weight(.medium))
                     .foregroundStyle(.secondary)
                     .padding(.bottom, 8)
             }
             if let metrics = viewModel.currentMetrics {
-                Text("Updated \(metrics.TimeStamp)")
+                Text("Updated \(metrics.formattedTimestamp)")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(22)
+        .padding(AppTheme.Spacing.comfortable)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppTheme.Radius.card))
     }
 
     private var bloodPressureCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.compact) {
             HStack {
                 Image(systemName: "waveform.path.ecg")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(AppTheme.Colors.bloodPressure)
                 Text("Blood Pressure")
                     .font(.headline)
                     .foregroundStyle(.secondary)
@@ -128,10 +128,10 @@ struct DashBoardUIView: View {
             }
             HStack(alignment: .lastTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(viewModel.currentMetrics.map { "\($0.SystoliC)" } ?? "--")
+                    Text(viewModel.currentMetrics.map { "\($0.Systolic)" } ?? "--")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .contentTransition(.numericText())
-                        .animation(.easeOut(duration: 0.3), value: viewModel.currentMetrics?.SystoliC)
+                        .animation(AppTheme.Animation.metricUpdate, value: viewModel.currentMetrics?.Systolic)
                     Text("Systolic")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -145,7 +145,7 @@ struct DashBoardUIView: View {
                     Text(viewModel.currentMetrics.map { "\($0.Diastolic)" } ?? "--")
                         .font(.system(size: 48, weight: .bold, design: .rounded))
                         .contentTransition(.numericText())
-                        .animation(.easeOut(duration: 0.3), value: viewModel.currentMetrics?.Diastolic)
+                        .animation(AppTheme.Animation.metricUpdate, value: viewModel.currentMetrics?.Diastolic)
                     Text("Diastolic")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -157,9 +157,9 @@ struct DashBoardUIView: View {
                     .padding(.bottom, 4)
             }
         }
-        .padding(22)
+        .padding(AppTheme.Spacing.comfortable)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppTheme.Radius.card))
     }
 
     /// Predictive on-device AI signal (see MLPipeline/). Only appears once
@@ -185,16 +185,16 @@ struct DashBoardUIView: View {
                 Spacer()
                 Text("\(Int(prediction.riskScore * 100))%")
                     .font(.title3.weight(.bold))
-                    .foregroundStyle(prediction.isElevated ? .orange : .secondary)
+                    .foregroundStyle(prediction.isElevated ? AppTheme.Colors.warning : .secondary)
             }
-            .padding(18)
+            .padding(AppTheme.Spacing.snug)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppTheme.Radius.card))
             .overlay(
-                RoundedRectangle(cornerRadius: 20)
-                    .strokeBorder(prediction.isElevated ? Color.orange.opacity(0.5) : .clear, lineWidth: 1.5)
+                RoundedRectangle(cornerRadius: AppTheme.Radius.card)
+                    .strokeBorder(prediction.isElevated ? AppTheme.Colors.warning.opacity(0.5) : .clear, lineWidth: 1.5)
             )
-            .animation(.easeInOut(duration: 0.4), value: prediction.isElevated)
+            .animation(AppTheme.Animation.stateChange, value: prediction.isElevated)
         }
     }
 
@@ -210,13 +210,13 @@ struct DashBoardUIView: View {
             }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 18)
+            .padding(.vertical, AppTheme.Spacing.snug)
             .background(
-                viewModel.isMonitoring ? Color.red : Color.green,
-                in: RoundedRectangle(cornerRadius: 18)
+                viewModel.isMonitoring ? AppTheme.Colors.critical : AppTheme.Colors.liveMonitoring,
+                in: RoundedRectangle(cornerRadius: AppTheme.Radius.actionButton)
             )
         }
-        .animation(.spring(response: 0.3), value: viewModel.isMonitoring)
+        .animation(AppTheme.Animation.buttonToggle, value: viewModel.isMonitoring)
     }
 }
 
@@ -224,10 +224,10 @@ struct DashBoardUIView: View {
 extension HealthStatusAlert {
     var accentColor: Color {
         switch self {
-        case .normal: .green
-        case .hypertension, .tachycardia: .red
-        case .hypotension: .orange
-        case .bradycardia: .purple
+        case .normal: AppTheme.Colors.liveMonitoring
+        case .hypertension, .tachycardia: AppTheme.Colors.critical
+        case .hypotension: AppTheme.Colors.warning
+        case .bradycardia: AppTheme.Colors.bradycardia
         }
     }
 

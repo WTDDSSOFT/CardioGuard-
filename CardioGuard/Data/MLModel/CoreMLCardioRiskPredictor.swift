@@ -67,7 +67,7 @@ final class CoreMLCardioRiskPredictor: CardioRiskPredicting {
 
         for (index, metrics) in window.enumerated() {
             array[[0, NSNumber(value: index), 0]] = NSNumber(value: metrics.BPM)
-            array[[0, NSNumber(value: index), 1]] = NSNumber(value: metrics.SystoliC)
+            array[[0, NSNumber(value: index), 1]] = NSNumber(value: metrics.Systolic)
             array[[0, NSNumber(value: index), 2]] = NSNumber(value: metrics.Diastolic)
         }
 

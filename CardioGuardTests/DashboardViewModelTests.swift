@@ -73,11 +73,11 @@ struct DashboardViewModelTests {
 
         vm.toggleMonitoring()
         await Task.yield()  // let the monitoring task subscribe to the stream
-        mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 120, Diastolic: 80))
+        mock.emit(CardioVascularMetrics(BPM: 75, Systolic: 120, Diastolic: 80))
         await Task.yield()  // let the monitoring task process the emitted value
 
         #expect(vm.currentMetrics?.BPM == 75)
-        #expect(vm.currentMetrics?.SystoliC == 120)
+        #expect(vm.currentMetrics?.Systolic == 120)
         #expect(vm.currentMetrics?.Diastolic == 80)
     }
 
@@ -86,156 +86,43 @@ struct DashboardViewModelTests {
         let mock = BLECardioMonitorMock()
         let vm = DashboardViewModel(monitorService: mock)
 
-        mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 120, Diastolic: 80))
+        mock.emit(CardioVascularMetrics(BPM: 75, Systolic: 120, Diastolic: 80))
         await Task.yield()
 
         #expect(vm.currentMetrics == nil)
     }
 
-    // MARK: - Risk Evaluation (Alert State)
+    // MARK: - Risk Evaluation Wiring
+    //
+    // The exhaustive per-threshold + boundary-value matrix lives in
+    // EvaluateCardioRiskUseCaseTests (Domain level) - these two tests just
+    // confirm DashboardViewModel actually wires an emitted reading through
+    // to EvaluateCardioRiskUseCase and surfaces the result as `alertState`,
+    // without re-asserting every threshold a second time here.
 
-    @Test("Systolic > 140 triggers hypertension alert", .tags(.success))
-    func highSystolicTriggersHypertension() async {
+    @Test("An out-of-range reading updates alertState via the risk use case", .tags(.success))
+    func riskyReadingUpdatesAlertState() async {
         let mock = BLECardioMonitorMock()
         let vm = DashboardViewModel(monitorService: mock)
 
         vm.toggleMonitoring()
         await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 141, Diastolic: 80))
+        mock.emit(CardioVascularMetrics(BPM: 75, Systolic: 141, Diastolic: 80))
         await Task.yield()
 
         #expect(vm.alertState == .hypertension)
     }
 
-    @Test("Diastolic > 90 triggers hypertension alert", .tags(.success))
-    func highDiastolicTriggersHypertension() async {
+    @Test("A normal reading keeps alertState .normal", .tags(.success))
+    func normalReadingKeepsAlertStateNormal() async {
         let mock = BLECardioMonitorMock()
         let vm = DashboardViewModel(monitorService: mock)
 
         vm.toggleMonitoring()
         await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 120, Diastolic: 91))
-        await Task.yield()
-
-        #expect(vm.alertState == .hypertension)
-    }
-
-    @Test("Systolic < 90 triggers hypotension alert", .tags(.success))
-    func lowSystolicTriggersHypotension() async {
-        let mock = BLECardioMonitorMock()
-        let vm = DashboardViewModel(monitorService: mock)
-
-        vm.toggleMonitoring()
-        await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 89, Diastolic: 60))
-        await Task.yield()
-
-        #expect(vm.alertState == .hypotension)
-    }
-
-    @Test("BPM > 120 with normal BP triggers tachycardia alert", .tags(.success))
-    func highBPMTriggersTachycardia() async {
-        let mock = BLECardioMonitorMock()
-        let vm = DashboardViewModel(monitorService: mock)
-
-        vm.toggleMonitoring()
-        await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 121, SystoliC: 120, Diastolic: 80))
-        await Task.yield()
-
-        #expect(vm.alertState == .tachycardia)
-    }
-
-    @Test("BPM < 50 with normal BP triggers bradycardia alert", .tags(.success))
-    func lowBPMTriggersBradycardia() async {
-        let mock = BLECardioMonitorMock()
-        let vm = DashboardViewModel(monitorService: mock)
-
-        vm.toggleMonitoring()
-        await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 49, SystoliC: 120, Diastolic: 80))
-        await Task.yield()
-
-        #expect(vm.alertState == .bradycardia)
-    }
-
-    @Test("Normal metrics keeps alert as normal", .tags(.success))
-    func normalMetricsKeepsNormalAlert() async {
-        let mock = BLECardioMonitorMock()
-        let vm = DashboardViewModel(monitorService: mock)
-
-        vm.toggleMonitoring()
-        await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 120, Diastolic: 80))
+        mock.emit(CardioVascularMetrics(BPM: 75, Systolic: 120, Diastolic: 80))
         await Task.yield()
 
         #expect(vm.alertState == .normal)
-    }
-
-    // MARK: - Boundary Value Tests
-
-    @Test("Systolic exactly 140 does NOT trigger hypertension", .tags(.failure))
-    func systolicExactly140DoesNotTriggerHypertension() async {
-        let mock = BLECardioMonitorMock()
-        let vm = DashboardViewModel(monitorService: mock)
-
-        vm.toggleMonitoring()
-        await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 140, Diastolic: 80))
-        await Task.yield()
-
-        #expect(vm.alertState != .hypertension)
-    }
-
-    @Test("Diastolic exactly 90 does NOT trigger hypertension", .tags(.failure))
-    func diastolicExactly90DoesNotTriggerHypertension() async {
-        let mock = BLECardioMonitorMock()
-        let vm = DashboardViewModel(monitorService: mock)
-
-        vm.toggleMonitoring()
-        await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 120, Diastolic: 90))
-        await Task.yield()
-
-        #expect(vm.alertState != .hypertension)
-    }
-
-    @Test("Systolic exactly 90 does NOT trigger hypotension", .tags(.failure))
-    func systolicExactly90DoesNotTriggerHypotension() async {
-        let mock = BLECardioMonitorMock()
-        let vm = DashboardViewModel(monitorService: mock)
-
-        vm.toggleMonitoring()
-        await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 90, Diastolic: 80))
-        await Task.yield()
-
-        #expect(vm.alertState != .hypotension)
-    }
-
-    @Test("BPM exactly 120 does NOT trigger tachycardia", .tags(.failure))
-    func bpmExactly120DoesNotTriggerTachycardia() async {
-        let mock = BLECardioMonitorMock()
-        let vm = DashboardViewModel(monitorService: mock)
-
-        vm.toggleMonitoring()
-        await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 120, SystoliC: 120, Diastolic: 80))
-        await Task.yield()
-
-        #expect(vm.alertState != .tachycardia)
-    }
-
-    @Test("BPM exactly 50 does NOT trigger bradycardia", .tags(.failure))
-    func bpmExactly50DoesNotTriggerBradycardia() async {
-        let mock = BLECardioMonitorMock()
-        let vm = DashboardViewModel(monitorService: mock)
-
-        vm.toggleMonitoring()
-        await Task.yield()
-        mock.emit(CardioVascularMetrics(BPM: 50, SystoliC: 120, Diastolic: 80))
-        await Task.yield()
-
-        #expect(vm.alertState != .bradycardia)
     }
 }

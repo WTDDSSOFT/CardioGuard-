@@ -15,6 +15,7 @@ enum AppTheme {
         static let liveMonitoring = Color.green
         static let warning = Color.orange
         static let critical = Color.red
+        static let bradycardia = Color.purple
         static let bluetoothSignal = Color.blue
     }
 
@@ -29,6 +30,7 @@ enum AppTheme {
         static let tight: CGFloat = 8
         static let compact: CGFloat = 12
         static let standard: CGFloat = 16
+        static let snug: CGFloat = 18
         static let comfortable: CGFloat = 22
         static let loose: CGFloat = 24
         static let safeAreaBottom: CGFloat = 32

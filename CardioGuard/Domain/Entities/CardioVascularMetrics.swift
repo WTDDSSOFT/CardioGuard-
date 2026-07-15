@@ -8,16 +8,16 @@ import Foundation
 
 struct CardioVascularMetrics {
     var BPM: Int
-    var SystoliC: Int
+    var Systolic: Int
     var Diastolic: Int
     var Timestamp: Date?
     
     var Description: String {
-        "\(BPM) BPM, \(SystoliC) /\(Diastolic) mmH"
+        "\(BPM) BPM, \(Systolic) /\(Diastolic) mmH"
     }
     
-    var TimeStamp: String {
-        Timestamp?.formatted(date: .abbreviated, time: .shortened) ?? "No timeStemp set"
+    var formattedTimestamp: String {
+        Timestamp?.formatted(date: .abbreviated, time: .shortened) ?? "No timestamp set"
     }
 
 }

@@ -103,8 +103,8 @@ it was built and validated in an offline sandbox with no package-registry access
 
 ```
 CardioGuard/
-  App/            CardioGuardApp.swift - @main entry point, injects AppRouter into the environment
-  Core/           DI container (AppContainer), navigation (AppRouter), design tokens (AppTheme)
+  App/            CardioGuardApp.swift - @main entry point
+  Core/           DI container (AppContainer, RunEnvironment), design tokens (AppTheme)
   Domain/         Entities, protocols, use cases - zero framework imports (no SwiftUI/CoreBluetooth/CoreML)
   Data/           Concrete implementations of Domain protocols - BLE (CoreBluetooth) and ML (Core ML)
   Presentation/   SwiftUI Views + @Observable ViewModels (MVVM), one folder per feature
@@ -114,19 +114,22 @@ CardioGuard/
 The dependency rule is enforced by protocol placement, not by module boundaries (it's a
 single app target, not separate Swift packages): every protocol lives in `Domain/Protocols/`,
 every concrete side-effecting implementation lives in `Data/`, and `Presentation/` only ever
-talks to the `Domain/` protocol types. `Core/DependecyInjection/AppContainer.swift` is the
+talks to the `Domain/` protocol types. `Core/DependencyInjection/AppContainer.swift` is the
 single composition root - the only place that imports both a `Domain` protocol and its
 `Data` implementation and wires them together:
 
 ```swift
 func makeCardioMonitorService() -> CardioMonitorServing {
-    #if targetEnvironment(simulator)
-    return BLECardioMonitorMock()
-    #else
-    return BLECardioMonitorRepository(central: BLECentralManager())
-    #endif
+    switch runEnvironment {
+    case .simulated: return SimulatedCardioMonitorService()
+    case .live: return BLECardioMonitorRepository(central: centralManager)
+    }
 }
 ```
+
+`runEnvironment` is an injectable `RunEnvironment` (`.simulated`/`.live`, defaulting to
+`.current`, which reads `#if targetEnvironment(simulator)` internally) rather than a
+compile-time branch inline at the call site - see "Trade-offs" below for why.
 
 **The life of one reading**, end to end:
 
@@ -149,23 +152,26 @@ func makeCardioMonitorService() -> CardioMonitorServing {
 6. Each reading is evaluated **twice, independently**: `EvaluateCardioRiskUseCase.primaryAlert(for:)`
    (instant, deterministic, a strategy-pattern aggregation of `BPMClinicalThresholds` /
    `SystolicClinicalThresholds` / `DiastolicClinicalThresholds`, each conforming to
-   `EvaluateCardioRiskUseSG`) updates `alertState` synchronously; and the reading is pushed
-   into a private rolling 6-reading window that, once full, is hived off to
-   `CardioRiskPredicting.predict(window:)` (the Core ML model) to update `aiRiskPrediction`
-   asynchronously.
+   `EvaluateCardioRiskUseCaseStrategy`) updates `alertState` synchronously; and the reading is
+   appended to a `ReadingWindow` (a small rolling-buffer type of its own) that, once full, is
+   handed off to `CardioRiskPredicting.predict(window:)` (the Core ML model) to update
+   `aiRiskPrediction` asynchronously.
 7. `DashBoardUIView`, an `@Observable`-driven SwiftUI view, renders both outputs as two
    visually distinct cards (`alertBanner` for the instant rule engine, `aiRiskCard` for the
    predictive model) - so the user never sees them conflated into one signal.
 
 **Testing strategy:** every side-effecting dependency is a protocol with a small,
-hand-rolled test double - no mocking framework. `BLECardioMonitorMock` substitutes for
-`CardioMonitorServing` (with `emit(_:)` to push readings and call counters to assert on),
-`CardioRiskPredictorMock` substitutes for `CardioRiskPredicting` (stubbed prediction or
-error). All four test files (`CardioGuardTests`, `DashboardViewModelTests`,
-`CardioAIPredictionTests`, plus the parser tests) use Swift Testing (`@Suite`/`@Test`,
-`#expect`, tagged `.success`/`.failure` via `Tag+Extension.swift`) rather than XCTest,
-and consistently pair a success-path test with a boundary-value test for every threshold
-(e.g. "BPM exactly 50 does NOT trigger bradycardia").
+hand-rolled test double - no mocking framework. `BLECardioMonitorMock` (living in
+`CardioGuardTests/`, not shipped in the app target) substitutes for `CardioMonitorServing`
+(with `emit(_:)` to push readings and call counters to assert on), `CardioRiskPredictorMock`
+substitutes for `CardioRiskPredicting` (stubbed prediction or error). All four test files
+(`CardioGuardTests`, `DashboardViewModelTests`, `CardioAIPredictionTests`, plus the parser
+tests) use Swift Testing (`@Suite`/`@Test`, `#expect`, tagged `.success`/`.failure` via
+`Tag+Extension.swift`) rather than XCTest. `EvaluateCardioRiskUseCaseTests` (in
+`CardioGuardTests`) owns the exhaustive per-threshold + boundary-value matrix (e.g. "BPM
+exactly 50 does NOT trigger bradycardia"); `DashboardViewModelTests` only re-checks that
+matrix's result actually reaches `alertState` through the ViewModel, rather than repeating
+every boundary a second time.
 
 ### MLPipeline: an independent, offline-first training pipeline
 
@@ -207,64 +213,59 @@ stays hidden instead of the app crashing.
 
 ### Trade-offs and honest limitations
 
-**iOS side:**
-* `AppContainer.makeCardioMonitorService()` decides mock-vs-real with
-  `#if targetEnvironment(simulator)` - a compile-time flag baked into the composition root
-  rather than an injectable configuration. It means the real `BLECardioMonitorRepository`
-  can never be exercised in Simulator, and the mock can't be forced on a device build
-  without recompiling. A `RunEnvironment` value picked once at launch (or per scheme) would
-  make that choice explicit and overridable instead of implicit.
-* `BLECardioMonitorMock` does double duty as the Simulator's demo data generator (shipped
-  in the app target, used by `AppContainer`) *and* as the test suite's mock (it carries
-  `startMonitoringCallCount`/`stopMonitoringCallCount` purely for assertions). Convenient
-  short-term, but a change made to satisfy one caller can quietly break the other, and test
-  instrumentation ships inside the app bundle. Splitting it into a shipped
-  `SimulatedCardioMonitorService` and a test-only spy would be cleaner.
-* The Scanner feature isn't actually wired into the DI graph: `AppContainer.makeScannerViewModel()`
-  is dead code (`ScannerUIView` constructs `ScannerViewModel()` directly), and the
-  `AppRouter`/`AppScreen` navigation stack injected into the environment by
-  `CardioGuardApp` is unused too - Dashboard→Scanner navigation is a local
-  `@State private var showScanner: Bool` + `.sheet`. Either finish wiring Scanner through
-  `AppContainer`/`AppRouter`, or delete the unused router and factory - as it stands there's
-  more navigation architecture present than the app actually exercises.
-* Scanner itself is fully simulated (`Task.sleep` + two hardcoded `DiscoveredDevice` values)
-  and never touches `BLECentralManaging` - "scan for a device" and "monitor an already-known
-  device" are two separate code paths that have never been connected. Handing a discovered
-  peripheral from the scanner into `BLECentralManager` would close that gap.
-* `BLEDataParser`'s `corruptedData` guard (`bpm/slic/dlic >= 0`) can never actually fire -
-  the values are decoded via `Int(payload[n])` from `UInt8`, which is never negative. Worth
-  either deleting the dead branch or, better, replacing it with a real
-  physiological-plausibility check (e.g. reject BPM > 250) so malformed sensor data is
-  caught at the parsing boundary instead of only at the clinical-threshold layer.
-* `BLECentralManager` scans for the real Bluetooth Heart Rate Service (`0x180D`) /
-  Measurement characteristic (`0x2A37`) UUIDs but decodes payloads with the same custom
-  3-byte `[BPM, Systolic, Diastolic]` schema as the mock. The standard GATT Heart Rate
-  Measurement characteristic doesn't carry blood pressure at all (that lives in an entirely
-  separate GATT Blood Pressure Service with its own wire format), so this implementation
-  would not interoperate with a real off-the-shelf heart rate strap - fine for an exercise
-  built around a simulated payload, but worth being explicit that it isn't GATT-compliant.
-* `AppTheme` (`Core/Theme/AppTheme.swift`) defines colors, radii, spacing, and animation
-  curves as design tokens, but neither `DashBoardUIView` nor `ScannerUIView` references them
-  - both hardcode the equivalent literals inline. Adopting the tokens would turn a future
-  theming/dark-mode pass into a one-place change.
-* `DashboardViewModel` has accumulated three responsibilities - relaying live metrics,
-  running the instant rule engine, and running the rolling AI-window prediction - behind one
-  private mutable buffer (`recentReadings`). Still small and well-tested today, but the
-  natural next refactor is extracting the window bookkeeping into its own type (a small
-  `ReadingWindow` buffer, or a second use case paralleling `EvaluateCardioRiskUseCase`) so
-  the ViewModel goes back to pure orchestration.
-* A handful of naming/formatting rough edges, harmless but worth a cleanup pass: the parser
-  file is literally named `" BLEDataParser.swift"` with a leading space; the DI folder is
-  `Core/DependecyInjection` (missing an "n"); `CardioVascularMetrics` mixes casing
-  conventions (`SystoliC`, `Timestamp` vs. a computed `TimeStamp`); and
-  `EvaluateCardioRiskUseSG` reads as a truncated/typo'd sibling of
-  `EvaluateCardioRiskUseCase`. None of these affect behavior, but they're the kind of thing
-  that costs a new contributor a double-take.
-* `DashboardViewModelTests` and `EvaluateCardioRiskUseCaseTests` both exercise the exact same
-  clinical-threshold matrix (every alert × every boundary value) - one at the Domain/use-case
-  level, one end-to-end through the ViewModel. That's a reasonable belt-and-suspenders split
-  (unit-level correctness vs. wiring correctness), but it does mean any future threshold
-  change has to be updated in two places at once.
+**iOS side - resolved:** an earlier pass through this section flagged nine concrete gaps;
+all nine have since been addressed directly in the code, not just written up:
+
+* Mock-vs-real is no longer an inline `#if targetEnvironment(simulator)` at the call site -
+  `AppContainer` now takes an injectable `RunEnvironment` (`Core/DependencyInjection/RunEnvironment.swift`,
+  defaulting to `.current`), so the choice is explicit and overridable instead of a compile-time
+  branch baked into the composition root.
+* The Simulator fallback and the test double are no longer the same type. Production code
+  now uses `SimulatedCardioMonitorService` (`Data/BLE/Central/`, no test instrumentation,
+  never shipped-with-test-surface); `BLECardioMonitorMock` (with `emit()` and the call-count
+  spies) moved into `CardioGuardTests/` and is a test-only type now.
+* `AppContainer.makeScannerViewModel()` is no longer dead code - `ScannerUIView` constructs
+  its ViewModel through it, matching `DashBoardUIView`'s pattern. The unused `AppRouter`/`AppScreen`
+  navigation stack was deleted outright (Dashboard→Scanner is still a plain `.sheet`, which is
+  the right tool for a modal picker - there was no real push-navigation need to justify keeping
+  the router around).
+* Scanner is wired to real BLE discovery end to end: a new `BLEDeviceScanning` protocol
+  (`Domain/Protocols/`) is implemented by `BLEDeviceScannerRepository` for real devices and
+  `SimulatedBLEDeviceScanner` for the Simulator; `BLECentralManager` now yields every
+  discovered peripheral as a `DiscoveredDevice` (instead of silently auto-connecting to the
+  first one found) and exposes an explicit `connect(to:)` that suspends until CoreBluetooth
+  confirms the connection and notification subscription. `AppContainer` shares one
+  `BLECentralManager` instance between the monitor service and the device scanner in the
+  `.live` case, so a device picked in the Scanner is the same CoreBluetooth session
+  `DashboardViewModel` reads its `metricsStream` from - not two disconnected code paths
+  anymore. **Behavior change worth flagging:** on a real device, "Start Monitoring" no longer
+  silently auto-connects to the first heart-rate peripheral found; you now pick the device via
+  the Scanner first. That's arguably better product behavior (no silent connection to a random
+  nearby device), but it is a real change from the previous implicit auto-connect.
+* `BLEDataParser`'s `corruptedData` guard now does real work - it checks each vital against a
+  physiologically-plausible range (`PlausibleRange` in `BLEDataParser.swift`: BPM/Systolic
+  0–250, Diastolic 0–200) instead of a `>= 0` check that could never fail given `UInt8` input.
+* `BLECentralManager` now carries an explicit header comment stating it is *not* GATT-compliant
+  (the real Heart Rate Measurement characteristic doesn't carry blood pressure at all) - this
+  was a documentation gap, not a functional one, and rewriting the parsing to be truly
+  GATT-compliant is out of scope for what this project simulates.
+* `DashBoardUIView` and `ScannerUIView` now consume `AppTheme.Colors`/`Radius`/`Spacing`/`Animation`
+  throughout instead of hardcoding the equivalent literals (two small tokens, `Colors.bradycardia`
+  and `Spacing.snug`, were added to cover values the views already used that had no matching
+  token yet).
+* The rolling AI-prediction window moved out of `DashboardViewModel` into its own
+  `ReadingWindow` type (`Domain/UseCases/ReadingWindow.swift`) - the ViewModel now just calls
+  `readingWindow.appending(metrics)` and reacts to the result, instead of owning the
+  append/trim/count-check bookkeeping inline.
+* The naming/formatting rough edges are fixed: the parser file lost its leading space
+  (`BLEDataParser.swift`), `Core/DependecyInjection` is now `Core/DependencyInjection`,
+  `CardioVascularMetrics.SystoliC` is now `Systolic`, its computed formatted-string property
+  is now `formattedTimestamp` (no longer a near-collision with the stored `Timestamp`), and
+  `EvaluateCardioRiskUseSG` is now `EvaluateCardioRiskUseCaseStrategy`.
+* `DashboardViewModelTests`' boundary-value matrix was trimmed down to two representative
+  wiring tests (`riskyReadingUpdatesAlertState`, `normalReadingKeepsAlertStateNormal`); the
+  exhaustive per-threshold/boundary-value matrix now lives only in
+  `EvaluateCardioRiskUseCaseTests`, so a future threshold change only needs updating in one place.
 
 **ML side:**
 * The Swift↔Python contract (`"readings"` / `"risk_score"` / `[1,6,3]` / window size 6) is

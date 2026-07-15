@@ -8,30 +8,30 @@
 import SwiftUI
 
 struct ScannerUIView: View {
-    @State private var viewModel = ScannerViewModel()
+    @State private var viewModel = AppContainer.shared.makeScannerViewModel()
     @Environment(\.dismiss) private var dismiss
-    
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 scanningVisualization
-                    .padding(.top, 16)
-                
+                    .padding(.top, AppTheme.Spacing.standard)
+
                 statusLabel
                     .padding(.top, 20)
                     .padding(.horizontal, 32)
-                
+
                 if !viewModel.discoveredDevices.isEmpty {
                     deviceList
                         .padding(.top, 28)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                
+
                 Spacer()
-                
+
                 actionButton
                     .padding(.horizontal)
-                    .padding(.bottom, 32)
+                    .padding(.bottom, AppTheme.Spacing.safeAreaBottom)
             }
             .navigationTitle("BLE Scanner")
             .navigationBarTitleDisplayMode(.inline)
@@ -40,7 +40,7 @@ struct ScannerUIView: View {
                     Button("Cancel") { dismiss() }
                 }
             }
-            .animation(.spring(response: 0.4), value: viewModel.discoveredDevices.count)
+            .animation(AppTheme.Animation.listTransition, value: viewModel.discoveredDevices.count)
         }
     }
 
@@ -50,23 +50,23 @@ struct ScannerUIView: View {
         ZStack {
             if viewModel.scanPhase == .scanning {
                 PulseRingView(diameter: 110, opacity: 0.25, delay: 0.0)
-                    .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+                    .transition(.opacity.animation(AppTheme.Animation.stateChange))
                 PulseRingView(diameter: 165, opacity: 0.17, delay: 0.35)
-                    .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+                    .transition(.opacity.animation(AppTheme.Animation.stateChange))
                 PulseRingView(diameter: 220, opacity: 0.10, delay: 0.70)
-                    .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+                    .transition(.opacity.animation(AppTheme.Animation.stateChange))
             }
 
             Circle()
                 .fill(centerIconColor.opacity(0.12))
                 .frame(width: 100, height: 100)
-                .animation(.easeInOut(duration: 0.4), value: viewModel.scanPhase)
+                .animation(AppTheme.Animation.stateChange, value: viewModel.scanPhase)
 
             Image(systemName: centerIconName)
                 .font(.system(size: 42))
                 .foregroundStyle(centerIconColor)
                 .symbolEffect(.bounce, value: viewModel.scanPhase)
-                .animation(.easeInOut(duration: 0.3), value: viewModel.scanPhase)
+                .animation(AppTheme.Animation.metricUpdate, value: viewModel.scanPhase)
         }
         .frame(height: 250)
     }
@@ -80,11 +80,11 @@ struct ScannerUIView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
         }
-        .animation(.easeInOut, value: viewModel.scanPhase)
+        .animation(AppTheme.Animation.stateChange, value: viewModel.scanPhase)
     }
 
     private var deviceList: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: AppTheme.Spacing.compact) {
             HStack {
                 Text("Nearby Devices")
                     .font(.headline)
@@ -109,7 +109,7 @@ struct ScannerUIView: View {
             switch viewModel.scanPhase {
             case .idle:
                 Button { viewModel.startScan() } label: {
-                    scanButtonLabel("Start Scan", icon: "antenna.radiowaves.left.and.right", color: .blue)
+                    scanButtonLabel("Start Scan", icon: "antenna.radiowaves.left.and.right", color: AppTheme.Colors.bluetoothSignal)
                 }
             case .scanning:
                 Button { viewModel.stopScan() } label: {
@@ -123,17 +123,17 @@ struct ScannerUIView: View {
                 }
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 17)
-                .background(Color.orange, in: RoundedRectangle(cornerRadius: 16))
+                .padding(.vertical, AppTheme.Spacing.snug)
+                .background(AppTheme.Colors.warning, in: RoundedRectangle(cornerRadius: AppTheme.Radius.button))
             case .connected:
                 Button { dismiss() } label: {
-                    scanButtonLabel("Done", icon: "checkmark.circle.fill", color: .green)
+                    scanButtonLabel("Done", icon: "checkmark.circle.fill", color: AppTheme.Colors.liveMonitoring)
                 }
             case .found:
                 EmptyView()
             }
         }
-        .animation(.spring(response: 0.3), value: viewModel.scanPhase)
+        .animation(AppTheme.Animation.buttonToggle, value: viewModel.scanPhase)
     }
 
     // MARK: - Helpers
@@ -149,10 +149,10 @@ struct ScannerUIView: View {
 
     private var centerIconColor: Color {
         switch viewModel.scanPhase {
-        case .idle, .scanning: .blue
-        case .found: .green
-        case .connecting: .orange
-        case .connected: .red
+        case .idle, .scanning: AppTheme.Colors.bluetoothSignal
+        case .found: AppTheme.Colors.liveMonitoring
+        case .connecting: AppTheme.Colors.warning
+        case .connected: AppTheme.Colors.critical
         }
     }
 
@@ -181,8 +181,8 @@ struct ScannerUIView: View {
             .font(.title3.weight(.semibold))
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 17)
-            .background(color, in: RoundedRectangle(cornerRadius: 16))
+            .padding(.vertical, AppTheme.Spacing.snug)
+            .background(color, in: RoundedRectangle(cornerRadius: AppTheme.Radius.button))
     }
 }
 
@@ -197,7 +197,7 @@ private struct PulseRingView: View {
 
     var body: some View {
         Circle()
-            .stroke(Color.blue.opacity(opacity), lineWidth: 1.5)
+            .stroke(AppTheme.Colors.bluetoothSignal.opacity(opacity), lineWidth: 1.5)
             .frame(width: diameter, height: diameter)
             .scaleEffect(isAnimating ? 1.12 : 0.92)
             .onAppear {
@@ -222,10 +222,10 @@ private struct DeviceRowView: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Color.blue.opacity(0.12))
+                    .fill(AppTheme.Colors.bluetoothSignal.opacity(0.12))
                     .frame(width: 48, height: 48)
                 Image(systemName: "heart.circle.fill")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(AppTheme.Colors.bluetoothSignal)
                     .font(.title2)
             }
 
@@ -248,18 +248,18 @@ private struct DeviceRowView: View {
 
             Button("Connect", action: onConnect)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.blue)
+                .foregroundStyle(AppTheme.Colors.bluetoothSignal)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
-                .background(Color.blue.opacity(0.12), in: Capsule())
+                .background(AppTheme.Colors.bluetoothSignal.opacity(0.12), in: Capsule())
         }
-        .padding(16)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .padding(AppTheme.Spacing.standard)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: AppTheme.Radius.button))
     }
 
     private var signalBars: some View {
         let strength = device.rssi > -60 ? 3 : device.rssi > -75 ? 2 : 1
-        let color: Color = strength == 3 ? .green : strength == 2 ? .orange : .red
+        let color: Color = strength == 3 ? AppTheme.Colors.liveMonitoring : strength == 2 ? AppTheme.Colors.warning : AppTheme.Colors.critical
 
         return HStack(alignment: .bottom, spacing: 2) {
             ForEach(0..<3, id: \.self) { i in

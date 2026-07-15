@@ -8,7 +8,10 @@
 import Foundation
 
 struct DiscoveredDevice: Identifiable {
-    let id = UUID()
+    /// On a real device this is the underlying CBPeripheral's stable
+    /// `identifier`, so a `BLEDeviceScanning` implementation can look the
+    /// peripheral back up when `connect(to:)` is called with this value.
+    let id: UUID
     let name: String
     let rssi: Int
     let type: String

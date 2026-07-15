@@ -16,7 +16,7 @@ struct CardioAIPredictionTests {
 
     private func emitNormalReadings(_ count: Int, mock: BLECardioMonitorMock) async {
         for _ in 0..<count {
-            mock.emit(CardioVascularMetrics(BPM: 75, SystoliC: 120, Diastolic: 80))
+            mock.emit(CardioVascularMetrics(BPM: 75, Systolic: 120, Diastolic: 80))
             await Task.yield()
             await Task.yield()
         }

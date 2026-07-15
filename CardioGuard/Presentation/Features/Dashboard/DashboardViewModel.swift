@@ -26,7 +26,7 @@ final class DashboardViewModel {
     private var monitoringTask: Task<Void, Never>?
 
     /// Rolling window of the most recent readings fed to the AI predictor.
-    private var recentReadings: [CardioVascularMetrics] = []
+    private var readingWindow = ReadingWindow()
 
     init(
         monitorService: CardioMonitorServing,
@@ -80,13 +80,8 @@ final class DashboardViewModel {
     /// is likely within the next few readings - even if every individual
     /// reading so far is still within the clinical thresholds above.
     private func updateAIPrediction(with metrics: CardioVascularMetrics) async {
-        recentReadings.append(metrics)
-        if recentReadings.count > CardioRiskPredictorConfig.windowSize {
-            recentReadings.removeFirst()
-        }
-        guard recentReadings.count == CardioRiskPredictorConfig.windowSize else { return }
-
-        aiRiskPrediction = try? await aiPredictor.predict(window: recentReadings)
+        guard let window = readingWindow.appending(metrics) else { return }
+        aiRiskPrediction = try? await aiPredictor.predict(window: window)
     }
 
     // Garante que se a ViewModel for destruída, a recolha de dados para

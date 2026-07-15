@@ -20,7 +20,7 @@ struct EvaluateCardioRiskUseCase {
     // DashboardViewModel).
     static let priority: [HealthStatusAlert] = [.hypertension, .hypotension, .tachycardia, .bradycardia]
 
-    private let strategy: [EvaluateCardioRiskUseSG] = [
+    private let strategy: [EvaluateCardioRiskUseCaseStrategy] = [
         BPMClinicalThresholds(),
         SystolicClinicalThresholds(),
         DiastolicClinicalThresholds()
@@ -41,7 +41,7 @@ struct EvaluateCardioRiskUseCase {
     }
 }
 
-fileprivate struct BPMClinicalThresholds: EvaluateCardioRiskUseSG {
+fileprivate struct BPMClinicalThresholds: EvaluateCardioRiskUseCaseStrategy {
     func evaluate(_ clinicalThreshold: CardioVascularMetrics) -> [HealthStatusAlert]? {
         var healthStatusAlerts = Array<HealthStatusAlert>()
         if clinicalThreshold.BPM > 120 {
@@ -53,20 +53,20 @@ fileprivate struct BPMClinicalThresholds: EvaluateCardioRiskUseSG {
     }
 }
 
-fileprivate struct SystolicClinicalThresholds: EvaluateCardioRiskUseSG {
+fileprivate struct SystolicClinicalThresholds: EvaluateCardioRiskUseCaseStrategy {
     func evaluate(_ clinicalThreshold: CardioVascularMetrics) -> [HealthStatusAlert]? {
         var healthStatusAlerts: [HealthStatusAlert] = []
 
-        if clinicalThreshold.SystoliC > 140 {
+        if clinicalThreshold.Systolic > 140 {
             healthStatusAlerts.append(.hypertension)
-        } else if clinicalThreshold.SystoliC < 90 {
+        } else if clinicalThreshold.Systolic < 90 {
             healthStatusAlerts.append(.hypotension)
         }
         return healthStatusAlerts
     }
 }
 
-fileprivate struct DiastolicClinicalThresholds: EvaluateCardioRiskUseSG {
+fileprivate struct DiastolicClinicalThresholds: EvaluateCardioRiskUseCaseStrategy {
     func evaluate(_ clinicalThreshold: CardioVascularMetrics) -> [HealthStatusAlert]? {
         var healthStatusAlerts: [HealthStatusAlert] = []
 
