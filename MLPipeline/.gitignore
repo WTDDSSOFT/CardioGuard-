@@ -6,3 +6,4 @@ models/
 train_report.json
 prune_convert_report.json
 .venv/
+.vscode/
