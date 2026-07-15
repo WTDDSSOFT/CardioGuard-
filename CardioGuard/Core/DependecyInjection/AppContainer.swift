@@ -22,8 +22,15 @@ final class AppContainer {
         #endif
     }
 
+    func makeCardioRiskPredictor() -> CardioRiskPredicting {
+        CoreMLCardioRiskPredictor()
+    }
+
     func makeDashboardViewModel() -> DashboardViewModel {
-        DashboardViewModel(monitorService: makeCardioMonitorService())
+        DashboardViewModel(
+            monitorService: makeCardioMonitorService(),
+            aiPredictor: makeCardioRiskPredictor()
+        )
     }
 
     func makeScannerViewModel() -> ScannerViewModel {

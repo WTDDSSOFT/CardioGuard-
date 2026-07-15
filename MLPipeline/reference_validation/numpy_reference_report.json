@@ -1,0 +1,70 @@
+{
+  "baseline_params": 449,
+  "baseline_metrics": {
+    "accuracy": 0.959765625,
+    "precision": 0.7679558011049724,
+    "recall": 0.936026936026936,
+    "f1": 0.8437025796661609,
+    "tp": 278,
+    "fp": 84,
+    "fn": 19,
+    "tn": 2179
+  },
+  "baseline_latency_ms": 0.004383350005809916,
+  "pruned_params": 193,
+  "pruned_pre_finetune_metrics": {
+    "accuracy": 0.883984375,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0,
+    "tp": 0,
+    "fp": 0,
+    "fn": 297,
+    "tn": 2263
+  },
+  "pruned_metrics": {
+    "accuracy": 0.96015625,
+    "precision": 0.7700831024930748,
+    "recall": 0.936026936026936,
+    "f1": 0.8449848024316109,
+    "tp": 278,
+    "fp": 83,
+    "fn": 19,
+    "tn": 2180
+  },
+  "pruned_latency_ms": 0.0043603999984043185,
+  "param_reduction_pct": 57.01559020044543,
+  "latency_change_pct": -0.523572321972432,
+  "baseline_breakdown_by_kind": {
+    "bradycardic": {
+      "n": 265,
+      "positive_rate": 0.2037735849056604,
+      "recall": 0.9814814814814815
+    },
+    "hypertensive": {
+      "n": 388,
+      "positive_rate": 0.3015463917525773,
+      "recall": 0.9658119658119658
+    },
+    "hypotensive": {
+      "n": 252,
+      "positive_rate": 0.2698412698412698,
+      "recall": 0.9852941176470589
+    },
+    "normal": {
+      "n": 1071,
+      "positive_rate": 0.0,
+      "recall": null
+    },
+    "normal_with_artifact": {
+      "n": 276,
+      "positive_rate": 0.04710144927536232,
+      "recall": 0.0
+    },
+    "tachycardic": {
+      "n": 308,
+      "positive_rate": 0.1461038961038961,
+      "recall": 1.0
+    }
+  }
+}

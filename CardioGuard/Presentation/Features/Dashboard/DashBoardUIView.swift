@@ -20,6 +20,7 @@ struct DashBoardUIView: View {
                         alertBanner
                         heartRateCard
                         bloodPressureCard
+                        aiRiskCard
                         monitorButton
                     }
                     .padding(.horizontal)
@@ -159,6 +160,42 @@ struct DashBoardUIView: View {
         .padding(22)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+    }
+
+    /// Predictive on-device AI signal (see MLPipeline/). Only appears once
+    /// the rolling reading window has filled and the model has produced a
+    /// prediction - complements, and is visually distinct from, the instant
+    /// clinical-threshold `alertBanner` above.
+    @ViewBuilder
+    private var aiRiskCard: some View {
+        if let prediction = viewModel.aiRiskPrediction {
+            HStack(spacing: 14) {
+                Image(systemName: prediction.isElevated ? "brain.head.profile.fill" : "brain.head.profile")
+                    .font(.title2)
+                    .foregroundStyle(prediction.isElevated ? .orange : .secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("AI Trend Analysis")
+                        .font(.subheadline.weight(.semibold))
+                    Text(prediction.isElevated
+                         ? "Early warning: pattern resembles an approaching crisis"
+                         : "No concerning trend detected")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text("\(Int(prediction.riskScore * 100))%")
+                    .font(.title3.weight(.bold))
+                    .foregroundStyle(prediction.isElevated ? .orange : .secondary)
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .strokeBorder(prediction.isElevated ? Color.orange.opacity(0.5) : .clear, lineWidth: 1.5)
+            )
+            .animation(.easeInOut(duration: 0.4), value: prediction.isElevated)
+        }
     }
 
     private var monitorButton: some View {

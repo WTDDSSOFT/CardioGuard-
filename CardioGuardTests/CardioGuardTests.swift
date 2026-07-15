@@ -44,15 +44,15 @@ struct EvaluateCardioRiskUseCaseTests {
         #expect(useCase.evaluate(metrics) == [])
     }
 
-    @Test("BPM below 60 returns .bradycardia", .tags(.success))
-    func bpmBelow60ReturnsBradycardia() {
-        let metrics = CardioVascularMetrics(BPM: 50, SystoliC: 120, Diastolic: 80)
+    @Test("BPM below 50 returns .bradycardia", .tags(.success))
+    func bpmBelow50ReturnsBradycardia() {
+        let metrics = CardioVascularMetrics(BPM: 45, SystoliC: 120, Diastolic: 80)
         #expect(useCase.evaluate(metrics) == [.bradycardia])
     }
 
-    @Test("BPM above 100 returns .tachycardia", .tags(.success))
-    func bpmAbove100ReturnsTachycardia() {
-        let metrics = CardioVascularMetrics(BPM: 110, SystoliC: 120, Diastolic: 80)
+    @Test("BPM above 120 returns .tachycardia", .tags(.success))
+    func bpmAbove120ReturnsTachycardia() {
+        let metrics = CardioVascularMetrics(BPM: 125, SystoliC: 120, Diastolic: 80)
         #expect(useCase.evaluate(metrics) == [.tachycardia])
     }
 
@@ -70,21 +70,21 @@ struct EvaluateCardioRiskUseCaseTests {
 
     @Test("Tachycardia combined with hypertension returns both alerts", .tags(.success))
     func tachycardiaAndHypertensionReturnsBothAlerts() {
-        let metrics = CardioVascularMetrics(BPM: 110, SystoliC: 150, Diastolic: 95)
+        let metrics = CardioVascularMetrics(BPM: 125, SystoliC: 150, Diastolic: 95)
         #expect(useCase.evaluate(metrics) == [.tachycardia, .hypertension])
     }
 
     // MARK: - Boundary Value Failure Tests
 
-    @Test("BPM exactly 60 does NOT trigger bradycardia", .tags(.failure))
-    func bpmExactly60DoesNotTriggerBradycardia() {
-        let metrics = CardioVascularMetrics(BPM: 60, SystoliC: 120, Diastolic: 80)
+    @Test("BPM exactly 50 does NOT trigger bradycardia", .tags(.failure))
+    func bpmExactly50DoesNotTriggerBradycardia() {
+        let metrics = CardioVascularMetrics(BPM: 50, SystoliC: 120, Diastolic: 80)
         #expect(!useCase.evaluate(metrics).contains(.bradycardia))
     }
 
-    @Test("BPM exactly 100 does NOT trigger tachycardia", .tags(.failure))
-    func bpmExactly100DoesNotTriggerTachycardia() {
-        let metrics = CardioVascularMetrics(BPM: 100, SystoliC: 120, Diastolic: 80)
+    @Test("BPM exactly 120 does NOT trigger tachycardia", .tags(.failure))
+    func bpmExactly120DoesNotTriggerTachycardia() {
+        let metrics = CardioVascularMetrics(BPM: 120, SystoliC: 120, Diastolic: 80)
         #expect(!useCase.evaluate(metrics).contains(.tachycardia))
     }
 
@@ -116,13 +116,13 @@ struct EvaluateCardioRiskUseCaseTests {
 
     @Test("Bradycardia does NOT also return tachycardia", .tags(.failure))
     func bradycardiaDoesNotReturnTachycardia() {
-        let metrics = CardioVascularMetrics(BPM: 50, SystoliC: 120, Diastolic: 80)
+        let metrics = CardioVascularMetrics(BPM: 45, SystoliC: 120, Diastolic: 80)
         #expect(!useCase.evaluate(metrics).contains(.tachycardia))
     }
 
     @Test("Tachycardia does NOT also return bradycardia", .tags(.failure))
     func tachycardiaDoesNotReturnBradycardia() {
-        let metrics = CardioVascularMetrics(BPM: 110, SystoliC: 120, Diastolic: 80)
+        let metrics = CardioVascularMetrics(BPM: 125, SystoliC: 120, Diastolic: 80)
         #expect(!useCase.evaluate(metrics).contains(.bradycardia))
     }
 

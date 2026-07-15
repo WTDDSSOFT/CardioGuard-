@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum HealthStatusAlert {
+enum HealthStatusAlert: Hashable {
     case normal
     case hypertension
     case hypotension
