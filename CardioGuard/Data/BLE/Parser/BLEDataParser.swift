@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum BLEDataParserError: Error {
+enum BLEDataParserError: Error, Equatable {
     case invalidPacketLength
     case corruptedData
 }

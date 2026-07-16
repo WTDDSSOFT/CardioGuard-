@@ -174,8 +174,11 @@ struct DashBoardUIView: View {
                     .font(.title2)
                     .foregroundStyle(prediction.isElevated ? .orange : .secondary)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("AI Trend Analysis")
-                        .font(.subheadline.weight(.semibold))
+                    HStack(spacing: 6) {
+                        Text("AI Trend Analysis")
+                            .font(.subheadline.weight(.semibold))
+                        predictionSourceTag(for: prediction.source)
+                    }
                     Text(prediction.isElevated
                          ? "Early warning: pattern resembles an approaching crisis"
                          : "No concerning trend detected")
@@ -196,6 +199,24 @@ struct DashBoardUIView: View {
             )
             .animation(AppTheme.Animation.stateChange, value: prediction.isElevated)
         }
+    }
+
+    /// Makes it visible, not just implicit, when a prediction had to fall
+    /// back to the cloud (see HybridCardioRiskPredictor) rather than being
+    /// served on-device - honesty about the fallback path in the UI, not
+    /// just in code comments.
+    private func predictionSourceTag(for source: PredictionSource) -> some View {
+        let label = source == .onDevice ? "on-device" : "cloud"
+        let symbol = source == .onDevice ? "iphone" : "cloud"
+        return HStack(spacing: 3) {
+            Image(systemName: symbol)
+            Text(label)
+        }
+        .font(.caption2.weight(.medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 6))
     }
 
     private var monitorButton: some View {

@@ -29,8 +29,17 @@ final class AppContainer {
         }
     }
 
+    /// Local-first, cloud-fallback: prefers the on-device Core ML model, and
+    /// only falls back to `RemoteCardioRiskPredictor` if the local model is
+    /// unavailable or a prediction fails. With no cloud endpoint configured
+    /// (`CloudInferenceConfig.endpoint == nil`, the default), this behaves
+    /// exactly like the on-device-only predictor did before - the fallback
+    /// path is inert until a real backend exists.
     func makeCardioRiskPredictor() -> CardioRiskPredicting {
-        CoreMLCardioRiskPredictor()
+        HybridCardioRiskPredictor(
+            local: CoreMLCardioRiskPredictor(),
+            remote: RemoteCardioRiskPredictor()
+        )
     }
 
     func makeDeviceScanner() -> BLEDeviceScanning {

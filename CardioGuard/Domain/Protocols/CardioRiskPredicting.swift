@@ -14,7 +14,7 @@ enum CardioRiskPredictorConfig {
     static let windowSize = 6
 }
 
-enum CardioRiskPredictingError: Error {
+enum CardioRiskPredictingError: Error, Equatable {
     case invalidWindowSize
     case modelUnavailable
     case predictionFailed

@@ -1,10 +1,20 @@
-# 📋 Technical Challenge: CardioGuard IoT Monitor
+# 🧠 CardioGuard AI: Pruning & Quantization Case Study
 
-> This started as a BLE-integration challenge (Scenario + Technical Requirements
-> below) and was later extended with an **on-device AI early-warning model** -
-> PyTorch → structured pruning → Core ML → Swift integration - sitting alongside
-> the original clinical rule engine. Jump to [🧠 On-Device AI](#-on-device-ai-predictive-early-warning)
-> or the [pipeline README](./MLPipeline/README.md) for that part.
+> This started as a BLE-integration technical challenge (Scenario + Technical
+> Requirements below) and was later extended into a practical case study applying
+> concepts from my postgraduate studies in Artificial Intelligence & Machine
+> Learning (PUC): an **on-device AI early-warning model** - PyTorch → structured
+> pruning → quantization (PTQ) → Core ML → Swift integration, plus a
+> local-first/cloud-fallback composition (`HybridCardioRiskPredictor`) - sitting
+> alongside the original clinical rule engine. Jump to
+> [🧠 On-Device AI](#-on-device-ai-predictive-early-warning) or the
+> [pipeline README](./MLPipeline/README.md) for that part.
+>
+> **Scope, by choice:** this is iOS-only (Swift/SwiftUI/Core ML). Extending the
+> same model to Android (Kotlin + TensorFlow Lite/ONNX Runtime) is a real,
+> separate undertaking - a different runtime, a different conversion path from
+> the same PyTorch model, a different UI stack - not something to bolt onto this
+> repo as an afterthought. It's left out deliberately rather than half-done here.
 
 ## 🩺 The Scenario
 The company is prototyping a domestic and continuous cardiovascular monitor. This BLE (Bluetooth Low Energy) device transmits in real-time two critical pieces of user data: **Heart Rate (BPM)** and **Systolic/Diastolic Blood Pressure (mmHg)**.
@@ -87,10 +97,23 @@ it was built and validated in an offline sandbox with no package-registry access
 * Pruning is **structured** (whole neurons removed, not individual weights zeroed),
   because unstructured sparsity doesn't shrink a dense matrix or reduce Core ML
   inference latency unless the runtime has sparse-kernel support.
+* On top of pruning, `MLPipeline/quantize.py` applies **Post-Training Quantization**
+  (float16 via Core ML's native compute precision, then int8 weight-only via
+  `coremltools.optimize.coreml`) - both validated as accuracy-neutral on the
+  synthetic dataset (see `MLPipeline/README.md`'s "Quantization (PTQ)" section).
 * `CoreMLCardioRiskPredictor` loads the model by name via the generic `MLModel` API
   rather than Xcode's auto-generated model class, so the app compiles and runs even
   before a `.mlpackage` is bundled (predictions just become unavailable, and the AI
   card stays hidden) - see `CardioGuard/Resources/MLModels/README.md`.
+* `AppContainer` wraps `CoreMLCardioRiskPredictor` in a `HybridCardioRiskPredictor`
+  alongside a `RemoteCardioRiskPredictor` - a **local-first, cloud-fallback**
+  strategy: the on-device model is always tried first, and the cloud path is only
+  consulted if it throws. `AIRiskPrediction.source` (`.onDevice`/`.cloud`) is
+  surfaced all the way to the dashboard's "AI Trend Analysis" card, so which path
+  actually answered is never hidden from the user. No real backend is deployed
+  (`CloudInferenceConfig.endpoint` is `nil` by default) - honestly, standing up cloud
+  inference infrastructure is out of scope for a demo app, so this ships as a real,
+  tested composition pattern with an inert remote leg, not a working cloud service.
 * `EvaluateCardioRiskUseCase` and `CardioRiskPredicting` both default-construct in
   `DashboardViewModel.init`, so the existing BLE/threshold test suite keeps compiling
   unchanged while `AppContainer` wires the real Core ML implementation for the app.
@@ -164,14 +187,17 @@ compile-time branch inline at the call site - see "Trade-offs" below for why.
 hand-rolled test double - no mocking framework. `BLECardioMonitorMock` (living in
 `CardioGuardTests/`, not shipped in the app target) substitutes for `CardioMonitorServing`
 (with `emit(_:)` to push readings and call counters to assert on), `CardioRiskPredictorMock`
-substitutes for `CardioRiskPredicting` (stubbed prediction or error). All four test files
-(`CardioGuardTests`, `DashboardViewModelTests`, `CardioAIPredictionTests`, plus the parser
-tests) use Swift Testing (`@Suite`/`@Test`, `#expect`, tagged `.success`/`.failure` via
-`Tag+Extension.swift`) rather than XCTest. `EvaluateCardioRiskUseCaseTests` (in
-`CardioGuardTests`) owns the exhaustive per-threshold + boundary-value matrix (e.g. "BPM
-exactly 50 does NOT trigger bradycardia"); `DashboardViewModelTests` only re-checks that
-matrix's result actually reaches `alertState` through the ViewModel, rather than repeating
-every boundary a second time.
+substitutes for `CardioRiskPredicting` (stubbed prediction or error) - and
+`HybridCardioRiskPredictorTests` reuses two independent instances of that same mock (one as
+`local`, one as `remote`) to verify the fallback contract: local-succeeds never touches
+remote, local-fails calls remote and tags the result `.cloud`, both-fail propagates remote's
+error. All test files (`CardioGuardTests`, `DashboardViewModelTests`, `CardioAIPredictionTests`,
+`HybridCardioRiskPredictorTests`, plus the parser tests) use Swift Testing (`@Suite`/`@Test`,
+`#expect`, tagged `.success`/`.failure` via `Tag+Extension.swift`) rather than XCTest.
+`EvaluateCardioRiskUseCaseTests` (in `CardioGuardTests`) owns the exhaustive per-threshold +
+boundary-value matrix (e.g. "BPM exactly 50 does NOT trigger bradycardia");
+`DashboardViewModelTests` only re-checks that matrix's result actually reaches `alertState`
+through the ViewModel, rather than repeating every boundary a second time.
 
 ### MLPipeline: an independent, offline-first training pipeline
 

@@ -28,6 +28,7 @@ generate_data.py        synthetic patient trajectories + sliding-window dataset
 model.py                CardioRiskNet (PyTorch): 18 -> 16 -> 8 -> 1, normalization baked in
 train.py                trains the baseline model, evaluates, saves cardio_risk_predictor.pt
 prune_and_convert.py    structured neuron pruning + fine-tune + Core ML export (.mlpackage)
+quantize.py             float16 + int8 PTQ on top of the pruned model (see "Quantization" below)
 reference_validation/   numpy-only reimplementation, used to validate the approach (see below)
 ```
 
@@ -37,6 +38,7 @@ reference_validation/   numpy-only reimplementation, used to validate the approa
 pip install -r requirements.txt
 python train.py               # -> cardio_risk_predictor.pt, train_report.json
 python prune_and_convert.py   # -> models/CardioRiskPredictor.mlpackage, prune_convert_report.json
+python quantize.py            # -> models/CardioRiskPredictor_{fp16,int8}.mlpackage, quantize_report.json
 ```
 
 Then drag `models/CardioRiskPredictor.mlpackage` into
@@ -149,14 +151,72 @@ latency and memory footprint should be measured with Xcode's Core ML
 Performance Report (Product > Profile > Core ML template) once
 `CardioRiskPredictor.mlpackage` is built into the app on a real device.
 
+## Quantization (PTQ)
+
+`quantize.py` takes the already structurally-pruned model (193 params) one step
+further with Post-Training Quantization: a float16 variant (Core ML's native
+`compute_precision=.float16`) and an int8 weight-only variant
+(`coremltools.optimize.coreml.linear_quantize_weights` on top of the fp16
+package). Both are pure post-training steps - no retraining, no gradient
+updates, just requantizing the already-trained-and-pruned weights.
+
+**Honesty check, same as the rest of this file:** `quantize.py` was written
+and reviewed, but - unlike `train.py`/`prune_and_convert.py`, which really did
+run end-to-end once a machine with internet access was available - it has
+not actually been executed, so there are no real coremltools-produced
+`.mlpackage` sizes/timings to report here yet. What *has* been validated for
+real, in the same offline NumPy sandbox used for the original pruning
+validation, is the accuracy impact of quantization
+(`reference_validation/numpy_quantization_reference.py`, run standalone,
+results in `numpy_quantization_report.json`):
+
+| | Pruned fp32 (193 params) | fp16 (simulated) | int8 PTQ (simulated) |
+|---|---|---|---|
+| Accuracy | 96.02% | 96.02% (±0.000) | 96.09% (+0.078pp) |
+| F1 | 0.845 | 0.845 (±0.000) | 0.848 (+0.003) |
+| Storage estimate | 772 B (4 B/param) | 386 B (2 B/param) | 193 B (1 B/param) |
+
+Both quantization schemes were **accuracy-neutral on this synthetic dataset**
+at this parameter count - int8 was fractionally *better* than fp32 here,
+which is well within noise for a held-out set this size (2,560 windows) and
+shouldn't be read as "quantization improves accuracy" in general; it just
+means it didn't cost anything measurable here. The storage column is a
+theoretical `param_count × bytes_per_param` estimate, not a real `.mlpackage`
+size - like the earlier pruning result, the fixed `mlprogram` container
+overhead means the real on-disk win will be smaller in percentage terms than
+this table implies at only 193 parameters (see the pruning section above for
+the same caveat measured for real: 57% fewer parameters only bought 10.9%
+smaller `.mlpackage`).
+
+**How the simulation works:** `quantize_model_int8` applies per-tensor
+symmetric linear quantization to every weight/bias matrix
+(`scale = max(|w|)/127`, `round(w/scale)` clipped to `[-127,127]`, then
+dequantized back to float32 before the forward pass) - this is "fake
+quantization": it reproduces the numerical error int8 storage introduces
+without needing a real int8 execution kernel, the same technique PyTorch's
+and coremltools' own quantization-simulation tooling uses to validate
+accuracy before shipping a real quantized artifact. `quantize_model_float16`
+does the equivalent by casting through `np.float16`. Neither simulation
+measures real inference latency (the forward pass still runs in float32
+NumPy either way) - if anything, the simulated variants were marginally
+*slower* in this microbenchmark (~0.005ms vs ~0.0044ms/sample) purely from
+`copy.deepcopy` overhead, which says nothing about real int8/fp16 execution
+speed on a CPU/GPU/ANE that actually has a lower-precision kernel for it.
+
+If you run `quantize.py` on a Mac, cross-check the real `.mlpackage` files
+with Xcode's Core ML preview / Performance Report tab, and consider updating
+this table with the real numbers in place of the simulated ones.
+
 ## Reproducing the reference validation
 
 ```bash
 cd reference_validation
-python3 numpy_reference.py
+python3 numpy_reference.py               # pruning validation
+python3 numpy_quantization_reference.py  # quantization validation (reuses the above)
 ```
 
-No dependencies beyond NumPy. Prints and saves `numpy_reference_report.json`.
+No dependencies beyond NumPy. Prints and saves `numpy_reference_report.json` /
+`numpy_quantization_report.json` respectively.
 
 ---
 
@@ -219,6 +279,19 @@ since it's already close to converged). Conversion then traces the model with
 - both the baseline and pruned model are converted, so the size/accuracy comparison in
 this README is apples-to-apples through the same conversion path.
 
+### `quantize.py`: PTQ on top of the pruned model
+
+Two variants, both post-training (no retraining): `convert_fp16` just passes
+`compute_precision=ct.precision.FLOAT16` to `ct.convert(...)` - Core ML's
+native lower-precision compute path, no separate quantization step needed.
+`quantize_int8` then takes that fp16 `.mlpackage` and calls
+`coremltools.optimize.coreml.linear_quantize_weights` with a
+`linear_symmetric` config to additionally quantize weights to int8. Both
+reuse `load_baseline` / `structured_prune` / `fine_tune` from
+`prune_and_convert.py` rather than re-deriving the pruned model a different
+way, so the model being quantized here is identical to the one whose
+fp32 numbers are reported above.
+
 ### `reference_validation/numpy_reference.py`: hand-derived, not just hand-run
 
 This isn't a toy stand-in - it's a full from-scratch MLP with **manually derived forward
@@ -273,6 +346,15 @@ results" above for how its numbers compare to the real run.
   corrupting all three values at once) - the model's behavior on that kind of artifact is
   untested, not just "expected to be 0% recall by design" like the single-channel case
   documented above.
+* **`quantize.py` has never actually been run.** Unlike every other number in
+  this README, the `coremltools.optimize.coreml` call signatures in it
+  (`OpLinearQuantizerConfig`, `OptimizationConfig`, `linear_quantize_weights`)
+  were written against coremltools 7.x+ documentation but never executed
+  end-to-end - if the API drifted in whatever coremltools version is actually
+  installed, expect to need small fixes. The accuracy-impact conclusion
+  (quantization is accuracy-neutral here) doesn't depend on this exact API
+  and was validated independently in NumPy; the real `.mlpackage` file sizes
+  from this script have not been.
 * **No automated tests for this pipeline's own logic.** The Swift side has thorough Swift
   Testing coverage of the equivalent business rule (`EvaluateCardioRiskUseCaseTests`); this
   pipeline has no analogous check on `windows_from_trajectory`'s slicing/label alignment or
